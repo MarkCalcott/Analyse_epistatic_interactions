@@ -60,7 +60,6 @@ def wrapper(filename, WT):
         
         for key in sortedData["WT"][i].keys():
             #For each position in the sequence, compare the WT sequence to the corresponding mutant
-            print (key)
             WT_raw = sortedData["WT"][i][key]
             WT_IC50 = np.average(WT_raw)
             WT_StDev = np.std(WT_raw, ddof=0) #standard deviation of a population
