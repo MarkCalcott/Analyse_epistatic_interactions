@@ -68,7 +68,6 @@ def saveEdges(name, dictEC50, dictNetwork):
                     outputfile.write(','.join([str(x) for x in data]) + '\n')
     outputfile.close()
 
-
 def saveNodes(name, dictEC50, dictNetwork):
     '''
     Outputs file for the nodes in cytoscape
@@ -81,7 +80,64 @@ def saveNodes(name, dictEC50, dictNetwork):
         outputfile.write(','.join([str(x) for x in data]) + '\n')
     outputfile.close()
 
-def wrapper(filename, start = '0000000', end = '1111111', increaseTolerance = 1):
+def stopcondition(mutantActivity, parentActivity, increaseTolerance = 1.16):
+    return mutantActivity <= increaseTolerance*parentActivity #stop if the activity of the mutant is less than or equal to the parent
+
+
+def findpaths(start, end, dictEC50, checkEC50 = True, stoppingRule = stopcondition):
+    '''
+    Returns a list containing all the paths from
+    the start to the end on the condition that each
+    node is separated by 1 mutation and increases EC50
+    '''
+    graphs = []
+
+    #Look at each residue, and if it differs from the end residue then add to a list
+    newNodes = []
+    for i in range(len(start)):
+        if start[i] != end[i]:
+            newstart = start[:]
+            newstart[i] = end[i]
+            
+            ##If the checkEC50 and stop condition are met, then add this node as the end point
+            stop = stopcondition(dictEC50[''.join(newstart)], dictEC50[''.join(start)])
+            
+            if checkEC50 and stop:
+                pass
+            else:
+                newNodes.append(newstart[:])
+    #Return current node if there are no new nodes
+    if len(newNodes) == 0:
+        return [[''.join(start)]]
+
+    #Create new graphs with nodes that increase EC50
+    for x in newNodes:
+        newgraphs = findpaths(x, end, dictEC50, checkEC50, stoppingRule)
+        for y in newgraphs:
+            newList = []
+            newList = [''.join(start)]
+            newList.extend(y)
+            graphs.append(newList[:])
+    return graphs
+
+def outputPathsAsCSV(paths, name, dictEC50, length = 9):
+    '''
+    Creates an output file of paths and EC50 values
+    '''
+    filename = name + "_paths.csv"
+    outputfile = open(filename, 'w')
+    for path in paths:
+        EC50values = []
+        currentPath = ['' for x in range(length)]
+        for i in range(len(path)):
+            currentPath[i] = path[i]
+            EC50values.append(dictEC50[path[i]])
+        line = currentPath[:]
+        line.extend([str(x) for x in EC50values])
+        outputfile.write(','.join(line) + '\n')
+    outputfile.close()
+
+def wrapper(filename, start = '0000000', end = '1111111'):
     # Create dictionaries for network graph
     dictEC50 = create_EC50_dictionary(filename)
     dictNetwork = create_network_dictionary(dictEC50.keys())
@@ -94,6 +150,10 @@ def wrapper(filename, start = '0000000', end = '1111111', increaseTolerance = 1)
     
     #Save the nodes of a graph for cytoscape
     saveNodes(name, dictEC50, dictNetwork)
+    
+    # Output all paths in whcih each step increases by 16%
+    paths = findpaths(list(start), list(end), dictEC50)
+    outputPathsAsCSV(paths, name, dictEC50)
     
 
 wrapper("20_39 EC50s.csv")
